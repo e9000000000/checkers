@@ -1,7 +1,9 @@
 use std::fmt;
-use std::cmp;
+use std::time;
+use std::thread;
+use std::process;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum Cell {
     White,
     Black,
@@ -10,13 +12,13 @@ enum Cell {
     Empty,
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 struct Point {
     x: usize,
     y: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 struct Move {
     from: Point,
     to: Point,
@@ -36,11 +38,11 @@ type Moves = Vec<Move>;
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Cell::White => write!(f, "w"),
-            Cell::Black => write!(f, "b"),
-            Cell::WhiteKing => write!(f, "W"),
-            Cell::BlackKing => write!(f, "B"),
-            Cell::Empty => write!(f, "."),
+            Cell::White => write!(f, "\x1b[38;5;252m◯\x1b[0m"),
+            Cell::Black => write!(f, "\x1b[38;5;196m◯\x1b[0m"),
+            Cell::WhiteKing => write!(f, "\x1b[38;5;252◷\x1b[0m"),
+            Cell::BlackKing => write!(f, "\x1b[38;5;196m◷\x1b[0m"),
+            Cell::Empty => write!(f, "\x1b[38;5;60m.\x1b[0m"),
         }
     }
 }
@@ -57,6 +59,7 @@ struct Board {
     field: [[Cell; 8]; 8],
     state: State,
     move_amount: usize,
+    prev_turn_jump: Option<Point>,
 }
 
 impl Board {
@@ -64,6 +67,7 @@ impl Board {
         Board {
             state: State::WhiteTurn,
             move_amount: 0,
+            prev_turn_jump: None,
             field: [
                 [Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black],
                 [Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty],
@@ -81,6 +85,7 @@ impl Board {
         Board {
             state,
             move_amount: 0,
+            prev_turn_jump: None,
             field: arr.map(|row| row.map(|x| match x {
                 'b' => Cell::Black,
                 'w' => Cell::White,
@@ -92,19 +97,12 @@ impl Board {
     }
 
     fn print(&self) {
-        print!("|");
-        print!("{}", "-".repeat(17));
-        println!("|");
         for y in 0..self.field.len() {
-            print!("|");
             for x in 0..self.field[y].len() {
                 print!(" {}", self.field[y][x]);
             }
-            print!(" |\n");
+            println!();
         }
-        print!("|");
-        print!("{}", "-".repeat(17));
-        println!("|");
     }
 
     fn add_checker_jump_move_if_awailabel(&self, moves: &mut Moves, mv: Move) {
@@ -256,7 +254,7 @@ impl Board {
         }
     }
 
-    fn add_simple_moves_for_checker(&self, moves: &mut Moves, x: usize, y: usize, to_y: usize) {
+    fn add_normal_moves_for_checker(&self, moves: &mut Moves, x: usize, y: usize, to_y: usize) {
         if x > 0 {  // not beside left border
             let to_x = x - 1;
             match self.field[to_y][to_x] {
@@ -274,7 +272,7 @@ impl Board {
         }
     }
 
-    fn add_simple_moves_for_king(&self, moves: &mut Moves, x: usize, y: usize) {
+    fn add_normal_moves_for_king(&self, moves: &mut Moves, x: usize, y: usize) {
         let mut to_x = x;
         let mut to_y = y;
         loop {
@@ -332,23 +330,23 @@ impl Board {
         }
     }
 
-    fn add_simple_moves_for_checker_or_king(&self, moves: &mut Moves, x: usize, y: usize) {
+    fn add_normal_moves_for_checker_or_king(&self, moves: &mut Moves, x: usize, y: usize) {
         match self.state {
             State::WhiteTurn => match self.field[y][x] {
                 Cell::White => {
-                    self.add_simple_moves_for_checker(moves, x, y, y - 1);
+                    self.add_normal_moves_for_checker(moves, x, y, y - 1);
                 },
                 Cell::WhiteKing => {
-                    self.add_simple_moves_for_king(moves, x, y);
+                    self.add_normal_moves_for_king(moves, x, y);
                 },
                 _ => (),
             },
             State::BlackTurn => match self.field[y][x] {
                 Cell::Black => {
-                    self.add_simple_moves_for_checker(moves, x, y, y + 1);
+                    self.add_normal_moves_for_checker(moves, x, y, y + 1);
                 },
                 Cell::BlackKing => {
-                    self.add_simple_moves_for_king(moves, x, y);
+                    self.add_normal_moves_for_king(moves, x, y);
                 },
                 _ => (),
             },
@@ -357,10 +355,15 @@ impl Board {
     }
 
     fn add_forced_moves_for_all_checkers_and_kings(&self, moves: &mut Moves) {
-        for y in 0..self.field.len() {
-            for x in 0..self.field[y].len() {
-                self.add_jump_moves_for_checker_or_king(moves, x, y)
-            }
+        match self.prev_turn_jump {
+            Some(p) => self.add_jump_moves_for_checker_or_king(moves, p.x, p.y),
+            None => {
+                for y in 0..self.field.len() {
+                    for x in 0..self.field[y].len() {
+                        self.add_jump_moves_for_checker_or_king(moves, x, y)
+                    }
+                }
+            },
         }
     }
 
@@ -391,6 +394,14 @@ impl Board {
             self.state = State::Draw;
         }
 
+        if self.all_awailable_moves().len() == 0 {
+            match self.state {
+                State::WhiteTurn => self.state = State::BlackWin,
+                State::BlackTurn => self.state = State::WhiteWin,
+                _ => (),
+            }
+        }
+
         for x in 0..self.field[0].len() {
             match self.field[0][x] {
                 Cell::White => self.field[0][x] = Cell::WhiteKing,
@@ -399,32 +410,75 @@ impl Board {
         }
         for x in 0..self.field[7].len() {
             match self.field[7][x] {
-                Cell::Black => self.field[0][x] = Cell::BlackKing,
+                Cell::Black => self.field[7][x] = Cell::BlackKing,
                 _ => (),
             }
         }
+    }
+
+    fn all_awailable_moves(&self) -> Moves {
+        let mut awailable_moves = vec![];
+        self.add_forced_moves_for_all_checkers_and_kings(&mut awailable_moves);
+        if awailable_moves.len() != 0 {
+            return awailable_moves
+        }
+
+        for y in 0..self.field.len() {
+            for x in 0..self.field[y].len() {
+                self.add_normal_moves_for_checker_or_king(&mut awailable_moves, x, y);
+            }
+        }
+
+        return awailable_moves
     }
 
     fn do_move(&mut self, mv: Move) -> Result<(), &'static str> {
         let mut awailable_moves = vec![];
         self.add_forced_moves_for_all_checkers_and_kings(&mut awailable_moves);
         if awailable_moves.len() == 0 {
-            self.add_simple_moves_for_checker_or_king(&mut awailable_moves, mv.from.x, mv.from.y);
+            self.add_normal_moves_for_checker_or_king(&mut awailable_moves, mv.from.x, mv.from.y);
         }
 
         match awailable_moves.contains(&mv) {
             true => {
                 self.field[mv.to.y][mv.to.x] = self.field[mv.from.y][mv.from.x];
-                self.field[mv.from.y][mv.from.x] = Cell::Empty;
+
+                let mut is_it_was_jump = false;
+                let dir_y = match mv.to.y > mv.from.y {
+                    true => 1,
+                    false => -1,
+                };
+                let dir_x = match mv.to.x > mv.from.x {
+                    true => 1,
+                    false => -1,
+                };
+                let mut y = mv.from.y;
+                let mut x = mv.from.x;
+                loop {
+                    if y == mv.to.y || x == mv.to.x {
+                        break;
+                    }
+
+                    if self.field[y][x] != Cell::Empty && (y != mv.from.y || x != mv.from.x) {
+                        is_it_was_jump = true;
+                    }
+                    self.field[y][x] = Cell::Empty;
+
+                    x = (x as i32 + dir_x) as usize;
+                    y = (y as i32 + dir_y) as usize;
+                }
 
                 let mut forced_to_jump_on_next_turn = false;
-                if cmp::max(mv.to.y, mv.from.y) - cmp::min(mv.to.y, mv.from.y) > 1 {
+                if is_it_was_jump {
+                    self.prev_turn_jump = Some(mv.to);
                     let mut jump_moves = vec![];
                     self.add_jump_moves_for_checker_or_king(&mut jump_moves, mv.to.x, mv.to.y);
 
                     if jump_moves.len() != 0 {
                         forced_to_jump_on_next_turn = true;
                     }
+                } else {
+                    self.prev_turn_jump = None;
                 }
 
                 if !forced_to_jump_on_next_turn {
@@ -444,7 +498,29 @@ impl Board {
     }
 }
 
-fn main() {}
+fn main() {
+    let sleep_time = time::Duration::from_millis(1000);
+    let mut board = Board::new();
+    loop {
+        process::Command::new("clear").status().unwrap();
+        board.print();
+        let mvs = board.all_awailable_moves();
+        let mv_i = rand::random::<usize>() % mvs.len();
+        let mv = mvs[mv_i];
+        board.do_move(mv).unwrap();
+
+        match board.state {
+            State::WhiteWin => break,
+            State::BlackWin => break,
+            State::Draw => break,
+            _ => (),
+        }
+
+        thread::sleep(sleep_time);
+    }
+    board.print();
+
+}
 
 
 #[cfg(test)]
@@ -680,4 +756,55 @@ mod tests {
         assert_eq!(board.do_move(Move::new(0, 7, 5, 2)), Ok(()));
         assert_eq!(board.do_move(Move::new(5, 2, 7, 4)), Ok(()));
     }
+
+    #[test]
+    fn chear_cell_after_jump_over_it() {
+        let mut board = Board::from_arr(State::WhiteTurn, [
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', 'b', ' ', ' ', ' ', ' ', ' ', ' '],
+            ['w', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        ]);
+        assert_eq!(board.field[6][1], Cell::Black);
+        assert_eq!(board.do_move(Move::new(0, 7, 2, 5)), Ok(()));
+        assert_eq!(board.field[6][1], Cell::Empty);
+    }
+
+    #[test]
+    fn after_jump_with_one_piece_cant_eat_with_another_in_a_row() {
+        let mut board = Board::from_arr(State::WhiteTurn, [
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', 'b', ' '],
+            [' ', 'b', ' ', ' ', ' ', ' ', ' ', ' '],
+            ['w', ' ', ' ', ' ', ' ', ' ', 'b', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', 'w'],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        ]);
+        assert_eq!(board.do_move(Move::new(7, 6, 5, 4)), Ok(()));
+        assert!(board.do_move(Move::new(0, 5, 2, 3)).is_err());
+    }
+
+    #[test]
+    fn cant_jump_after_normal_move() {
+        let mut board = Board::from_arr(State::WhiteTurn, [
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', 'b', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', 'w', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+        ]);
+        assert_eq!(board.do_move(Move::new(3, 4, 2, 3)), Ok(()));
+        assert!(board.do_move(Move::new(2, 3, 4, 1)).is_err());
+    }
+
+    // TODO it can not jump when should be forsed sometimes
 }
