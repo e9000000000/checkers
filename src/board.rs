@@ -8,20 +8,20 @@ pub enum Cell { White,
     Empty,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 struct Point {
     x: usize,
     y: usize,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Move {
     from: Point,
     to: Point,
 }
 
 impl Move {
-    fn new(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> Self {
+    pub fn new(from_x: usize, from_y: usize, to_x: usize, to_y: usize) -> Self {
         Move {
             from: Point {x: from_x, y: from_y},
             to: Point {x: to_x, y: to_y},
@@ -43,6 +43,7 @@ impl fmt::Display for Cell {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum State {
     WhiteTurn,
     BlackTurn,
@@ -51,6 +52,13 @@ pub enum State {
     Draw,
 }
 
+#[derive(PartialEq)]
+pub enum Side {
+    White,
+    Black,
+}
+
+#[derive(Copy, Clone)]
 pub struct Board {
     field: [[Cell; 8]; 8],
     state: State,
@@ -192,7 +200,9 @@ impl Board {
             }
             check_x += 1;
             check_y += 1;
-            self.add_jump_move_for_king(moves, x, y, check_x, check_y, 1, 1);
+            if !(self.add_jump_move_for_king(moves, x, y, check_x, check_y, 1, 1)) {
+                break;
+            }
         }
 
         check_x = x;
@@ -203,7 +213,9 @@ impl Board {
             }
             check_x -= 1;
             check_y -= 1;
-            self.add_jump_move_for_king(moves, x, y, check_x, check_y, -1, -1);
+            if !(self.add_jump_move_for_king(moves, x, y, check_x, check_y, -1, -1)) {
+                break;
+            }
         }
 
         check_x = x;
@@ -214,7 +226,9 @@ impl Board {
             }
             check_x += 1;
             check_y -= 1;
-            self.add_jump_move_for_king(moves, x, y, check_x, check_y, 1, -1);
+            if !(self.add_jump_move_for_king(moves, x, y, check_x, check_y, 1, -1)) {
+                break;
+            }
         }
 
         check_x = x;
@@ -225,7 +239,9 @@ impl Board {
             }
             check_x -= 1;
             check_y += 1;
-            self.add_jump_move_for_king(moves, x, y, check_x, check_y, -1, 1);
+            if !(self.add_jump_move_for_king(moves, x, y, check_x, check_y, -1, 1)) {
+                break;
+            }
         }
     }
 
@@ -511,6 +527,36 @@ impl Board {
             State::Draw => true,
             _ => false,
         }
+    }
+
+    pub fn who_turn(&self) -> Side {
+        match self.state {
+            State::WhiteTurn => Side::White,
+            State::BlackTurn => Side::Black,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn who_win(&self) -> Option<Side> {
+        match self.state {
+            State::WhiteWin => Some(Side::White),
+            State::BlackWin => Some(Side::Black),
+            _ => None,
+        }
+    }
+
+    pub fn count(&self, cell_type: Cell) -> usize {
+        let mut result = 0;
+
+        for y in 0..self.field.len() {
+            for x in 0..self.field[y].len() {
+                if self.field[y][x] == cell_type {
+                    result += 1;
+                }
+            }
+        }
+
+        return result;
     }
 }
 
@@ -844,5 +890,20 @@ mod tests {
         ]);
         assert_eq!(board.do_move(Move::new(5, 2, 7, 0)), Ok(()));
         assert_eq!(board.field[0][7], Cell::WhiteKing);
+    }
+
+    #[test]
+    fn king_cant_jump_over_two_in_a_row() {
+        let mut board = Board::from_arr(State::BlackTurn, [
+            [' ', 'b', ' ', ' ', ' ', 'b', ' ', 'b'],
+            ['b', ' ', 'b', ' ', 'b', ' ', 'b', ' '],
+            [' ', ' ', ' ', ' ', ' ', ' ', ' ', 'b'],
+            ['b', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+            [' ', ' ', ' ', ' ', ' ', 'w', ' ', ' '],
+            [' ', ' ', ' ', ' ', 'w', ' ', ' ', ' '],
+            [' ', ' ', ' ', 'w', ' ', ' ', ' ', ' '],
+            ['w', ' ', 'B', ' ', 'w', ' ', 'w', ' '],
+        ]);
+        assert!(board.do_move(Move::new(2, 7, 6, 3)).is_err());
     }
 }
