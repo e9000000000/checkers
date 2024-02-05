@@ -533,7 +533,9 @@ impl Board {
         match self.state {
             State::WhiteTurn => Side::White,
             State::BlackTurn => Side::Black,
-            _ => unreachable!(),
+            State::WhiteWin => Side::Black,
+            State::BlackWin => Side::White,
+            _ => Side::White,
         }
     }
 
