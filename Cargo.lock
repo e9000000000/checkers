@@ -642,6 +642,7 @@ name = "checkers"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "egui",
  "rand",
 ]
 
