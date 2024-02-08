@@ -9,15 +9,21 @@ pub enum Cell { White,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-struct Point {
-    x: usize,
-    y: usize,
+pub struct Point {
+    pub x: usize,
+    pub y: usize,
+}
+
+impl Point {
+    pub fn new(x: usize, y: usize) -> Self {
+        return Self {x, y}
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Move {
-    from: Point,
-    to: Point,
+    pub from: Point,
+    pub to: Point,
 }
 
 impl Move {
@@ -34,11 +40,11 @@ type Moves = Vec<Move>;
 impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Cell::White => write!(f, "\x1b[38;5;252m◯\x1b[0m"),
-            Cell::Black => write!(f, "\x1b[38;5;196m◯\x1b[0m"),
-            Cell::WhiteKing => write!(f, "\x1b[38;5;252m◷\x1b[0m"),
-            Cell::BlackKing => write!(f, "\x1b[38;5;196m◷\x1b[0m"),
-            Cell::Empty => write!(f, "\x1b[38;5;60m.\x1b[0m"),
+            Cell::White => write!(f, "w"),
+            Cell::Black => write!(f, "b"),
+            Cell::WhiteKing => write!(f, "W"),
+            Cell::BlackKing => write!(f, "B"),
+            Cell::Empty => write!(f, " "),
         }
     }
 }
@@ -101,6 +107,14 @@ impl Board {
         }
     }
 
+    pub fn get_cell(&self, x: usize, y: usize) -> Cell {
+        self.field[y][x]
+    }
+
+    pub fn is_playable_cell(&self, x: usize, y: usize) -> bool {
+        (9 * y + x) % 2 != 0
+    }
+
     pub fn print(&self) {
         for y in 0..self.field.len() {
             for x in 0..self.field[y].len() {
@@ -145,7 +159,7 @@ impl Board {
         }
     }
 
-    // return true if jump possible awailable in same direction, otherwise false
+    // return true if jump possible available in same direction, otherwise false
     fn add_jump_move_for_king(&self, moves: &mut Moves, x: usize, y: usize, check_x: usize, check_y: usize, dir_x: i32, dir_y: i32) -> bool {
         let enemy_checker = match self.field[y][x] {
             Cell::White => Cell::Black,
@@ -409,7 +423,7 @@ impl Board {
             self.state = State::Draw;
         }
 
-        if self.all_awailable_moves().len() == 0 {
+        if self.all_available_moves().len() == 0 {
             match self.state {
                 State::WhiteTurn => self.state = State::BlackWin,
                 State::BlackTurn => self.state = State::WhiteWin,
@@ -431,20 +445,39 @@ impl Board {
         }
     }
 
-    pub fn all_awailable_moves(&self) -> Moves {
-        let mut awailable_moves = vec![];
-        self.add_forced_moves_for_all_checkers_and_kings(&mut awailable_moves);
-        if awailable_moves.len() != 0 {
-            return awailable_moves
+    pub fn available_moves_for_cell(&self, x: usize, y: usize) -> Moves {
+        let mut all_forced_moves = vec![];
+        let mut available_moves = vec![];
+        self.add_forced_moves_for_all_checkers_and_kings(&mut all_forced_moves);
+        if all_forced_moves.len() == 0 {
+            self.add_normal_moves_for_checker_or_king(&mut available_moves, x, y);
+        } else {
+            for i in 0..all_forced_moves.len() {
+                let mv = all_forced_moves[i];
+                if mv.from == Point::new(x, y) {
+                    available_moves.push(mv);
+                }
+            }
+        }
+
+        available_moves
+
+    }
+
+    pub fn all_available_moves(&self) -> Moves {
+        let mut available_moves = vec![];
+        self.add_forced_moves_for_all_checkers_and_kings(&mut available_moves);
+        if available_moves.len() != 0 {
+            return available_moves
         }
 
         for y in 0..self.field.len() {
             for x in 0..self.field[y].len() {
-                self.add_normal_moves_for_checker_or_king(&mut awailable_moves, x, y);
+                self.add_normal_moves_for_checker_or_king(&mut available_moves, x, y);
             }
         }
 
-        return awailable_moves
+        return available_moves
     }
 
     // return if it is a jump
@@ -482,13 +515,13 @@ impl Board {
     }
 
     pub fn do_move(&mut self, mv: Move) -> Result<(), &'static str> {
-        let mut awailable_moves = vec![];
-        self.add_forced_moves_for_all_checkers_and_kings(&mut awailable_moves);
-        if awailable_moves.len() == 0 {
-            self.add_normal_moves_for_checker_or_king(&mut awailable_moves, mv.from.x, mv.from.y);
+        let mut available_moves = vec![];
+        self.add_forced_moves_for_all_checkers_and_kings(&mut available_moves);
+        if available_moves.len() == 0 {
+            self.add_normal_moves_for_checker_or_king(&mut available_moves, mv.from.x, mv.from.y);
         }
 
-        match awailable_moves.contains(&mv) {
+        match available_moves.contains(&mv) {
             true => {
                 let is_it_was_jump = self.do_move_without_checks(mv);
 
@@ -516,7 +549,7 @@ impl Board {
                 self.update_after_move();
                 Ok(())
             },
-            false => Err("move unawailable"),
+            false => Err("move unavailable"),
         }
     }
 

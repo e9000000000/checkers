@@ -30,7 +30,7 @@ fn count_score(board: &Board, side: Side, king_multiplier: i8) -> i8 {
 
 fn moves_with_scores(board: &Board, depth: usize, king_multiplier: i8) -> Vec<ScoredMove> {
     let mut scored_moves = vec![];
-    let mvs = board.all_awailable_moves();
+    let mvs = board.all_available_moves();
     if mvs.len() == 0 {
         return scored_moves;
     }

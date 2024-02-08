@@ -4,123 +4,139 @@ mod player_minmax;
 
 
 struct App {
-
+    bd: board::Board,
+    highlighted: Vec<board::Point>,
+    selected_cell: Option<board::Point>,
 }
 
 
 impl App {
     fn new() -> Self {
-        return App {}
+        return Self {
+            bd: board::Board::new(),
+            highlighted: vec![],
+            selected_cell: None,
+        }
+    }
+
+    fn render_coordinate(&self, layout: &egui::Layout, ui: &mut egui::Ui, text: String) {
+        ui.with_layout(*layout, |ui| {
+            ui.label(text);
+        });
+
+    }
+
+    fn render_cell(&mut self, ui: &mut egui::Ui, x: usize, y: usize) {
+        let color: egui::Color32;
+        if self.highlighted.contains(&board::Point::new(x, y)) {
+            color = egui::Color32::DARK_GREEN;
+        } else {
+            if self.bd.is_playable_cell(x, y) {
+                color = egui::Color32::BLACK;
+            } else {
+                color = egui::Color32::DARK_GRAY;
+            }
+        }
+
+        ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
+            ui.scope(|ui| {
+                ui.style_mut().visuals.widgets.inactive.weak_bg_fill = color;
+                if ui.button(format!("{}", self.bd.get_cell(x, y))).clicked() {
+                    self.on_click(x, y);
+                }
+            });
+        });
+    }
+
+    fn on_click(&mut self, x: usize, y: usize) {
+        match self.bd.get_cell(x, y) {
+            board::Cell::Empty => {
+                for i in 0..self.highlighted.len() {
+                    if self.highlighted[i] == board::Point::new(x, y) {
+                        match self.selected_cell {
+                            Some(cell) => self.bd.do_move(board::Move::new(cell.x, cell.y, x, y)).unwrap(),
+                            None => (),
+                        }
+                        return
+                    }
+                }
+            },
+            _ => {
+                self.selected_cell = Some(board::Point::new(x, y));
+                let available_moves = self.bd.available_moves_for_cell(x, y);
+                self.highlighted = vec![];
+                for i in 0..available_moves.len() {
+                    self.highlighted.push(available_moves[i].to)
+                }
+            }
+        }
+    }
+
+    fn render_board(&mut self, ui: &mut egui::Ui) {
+        let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);
+        egui::Grid::new("checkers_grid")
+        .spacing(egui::vec2(2., 2.))
+        .min_col_width(ui.available_width() / 9. -2.)
+        .max_col_width(ui.available_width() / 9. -2.)
+        .min_row_height(ui.available_height() / 9. -2.)
+        .show(ui, |ui| {
+            self.render_coordinate(&layout, ui, "xy".to_string());
+            for x in 0..8 {
+                self.render_coordinate(&layout, ui, format!("{}", x));
+            }
+            ui.end_row();
+
+            for y in 0..8 {
+                for x in 0..8 {
+                    if x == 0 {
+                        self.render_coordinate(&layout, ui, format!("{}", y));
+                    }
+
+                    self.render_cell(ui, x, y);
+                }
+                ui.end_row();
+            }
+        });
     }
 }
 
 impl eframe::App for App {
-    /// Called by the frame work to save state before shutdown.
+    #[allow(unused_variables)]
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        // eframe::set_value(storage, eframe::APP_KEY, self);
+
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-
             egui::menu::bar(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
-                }
+                ui.menu_button("Checkers", |ui| {
+                    ui.add(egui::Hyperlink::from_label_and_url(
+                            "Source code.",
+                            "https://github.com/e9000000000/checkers",
+                            ));
+                    if ui.button("Quit").clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                ui.add_space(16.0);
 
                 egui::widgets::global_dark_light_mode_buttons(ui);
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("ахуеть ано работает");
-
-            // ui.horizontal(|ui| {
-            //     ui.label("Write something: ");
-            //     ui.text_edit_singleline(&mut self.label);
-            // });
-
-            // ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            // if ui.button("Increment").clicked() {
-            //     self.value += 1.0;
-            // }
-
-            // ui.separator();
-
-            ui.add(egui::Hyperlink::from_label_and_url(
-                "Source code.",
-                "https://github.com/e9000000000/checkers",
-            ));
-
-            ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-                if ui.button("huy").clicked() {
-                    println!("huy pressed");
-                }
-                if ui.button("huy2").clicked() {
-                    println!("huy2 pressed");
-                }
-            });
-
-            ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
-                egui::Grid::new("checkers_grid").min_row_height(50.).min_col_width(50.).show(ui, |ui| {
-                    ui.label("xy");
-                    for x in 0..8 {
-                        ui.label(format!("{}", x));
-                    }
-                    ui.end_row();
-
-                    for y in 0..8 {
-                        for x in 0..8 {
-                            if x == 0 {
-                                ui.label(format!("{}", y));
-                            }
-
-                            // ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
-                                if ui.button(format!("{},{}", x, y)).clicked() {
-                                    println!("hufewwefifei");
-                                }
-                            // });
-                        }
-                        ui.end_row();
-                    }
-                });
-            });
+            self.render_board(ui);
         });
     }
 }
 
-// fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-//     ui.horizontal(|ui| {
-//         ui.spacing_mut().item_spacing.x = 0.0;
-//         ui.label("Powered by ");
-//         ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-//         ui.label(" and ");
-//         ui.hyperlink_to(
-//             "eframe",
-//             "https://github.com/emilk/egui/tree/master/crates/eframe",
-//         );
-//         ui.label(".");
-//     });
-// }
+
 
 fn main() -> eframe::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0])
-            .with_min_inner_size([300.0, 220.0])
+            .with_inner_size([320.0, 320.0])
+            .with_min_inner_size([320.0, 320.0])
             .with_icon(
                 eframe::icon_data::from_png_bytes(&include_bytes!("../assets/chimp.png")[..])
                     .unwrap(),
@@ -128,7 +144,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "checkers",
         native_options,
         Box::new(|_cc| Box::new(App::new())),
     )

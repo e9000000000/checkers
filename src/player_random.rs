@@ -2,7 +2,7 @@ use crate::board::{Board, Move};
 
 
 pub fn chouse_move(board: &Board) -> Option<Move> {
-    let mvs = board.all_awailable_moves();
+    let mvs = board.all_available_moves();
     if mvs.len() == 0 {
         return None;
     }
