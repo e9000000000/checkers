@@ -58,7 +58,7 @@ pub enum State {
     Draw,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum Side {
     White,
     Black,
@@ -68,7 +68,7 @@ pub enum Side {
 pub struct Board {
     field: [[Cell; 8]; 8],
     state: State,
-    move_amount: usize,
+    pub move_amount: usize,
     prev_turn_jump: Option<Point>,
 }
 

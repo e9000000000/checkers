@@ -91,7 +91,7 @@ fn best_move(board: &Board, depth: usize, king_multiplier: i8) -> Option<Move> {
     }
 }
 
-pub fn chouse_move(board: &Board) -> Option<Move> {
+pub fn chouse_move5(board: &Board) -> Option<Move> {
     return best_move(board, 5, 3);
 }
 
