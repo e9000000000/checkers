@@ -42,7 +42,6 @@ impl App {
         self.selected_cell = None;
         self.enemy_try_move();
         self.highlight_available_checkers_to_move();
-
     }
 
     fn render_coordinate(&self, layout: &egui::Layout, ui: &mut egui::Ui, text: String) {
@@ -67,7 +66,16 @@ impl App {
         ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
             ui.scope(|ui| {
                 ui.style_mut().visuals.widgets.inactive.weak_bg_fill = color;
-                if ui.button(format!("{}", self.bd.get_cell(x, y))).clicked() {
+
+                let image = match self.bd.get_cell(x, y) {
+                    board::Cell::Empty => None,
+                    board::Cell::Black => Some(egui::Image::from_uri("file://assets/black_checker.png")),
+                    board::Cell::BlackKing => Some(egui::Image::from_uri("file://assets/black_king.png")),
+                    board::Cell::White => Some(egui::Image::from_uri("file://assets/white_checker.png")),
+                    board::Cell::WhiteKing => Some(egui::Image::from_uri("file://assets/white_king.png")),
+                };
+
+                if ui.add(egui::Button::opt_image_and_text(image, None)).clicked() {
                     self.on_click(x, y);
                 }
             });
@@ -210,6 +218,8 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui_extras::install_image_loaders(ctx);
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("Checkers", |ui| {
@@ -277,7 +287,7 @@ fn main() -> eframe::Result<()> {
             .with_inner_size([320.0, 320.0])
             .with_min_inner_size([320.0, 320.0])
             .with_icon(
-                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/chimp.png")[..])
+                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/black_king.png")[..])
                     .unwrap(),
             ),
         ..Default::default()

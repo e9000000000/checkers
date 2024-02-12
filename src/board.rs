@@ -115,15 +115,6 @@ impl Board {
         (9 * y + x) % 2 != 0
     }
 
-    pub fn print(&self) {
-        for y in 0..self.field.len() {
-            for x in 0..self.field[y].len() {
-                print!(" {}", self.field[y][x]);
-            }
-            println!();
-        }
-    }
-
     fn add_checker_jump_move_if_awailabel(&self, moves: &mut Moves, mv: Move) {
         match self.field[mv.to.y][mv.to.x] {
             Cell::Empty => match self.field[mv.from.y][mv.from.x] {
