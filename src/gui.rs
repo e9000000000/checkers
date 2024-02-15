@@ -7,6 +7,7 @@ enum GameMode {
     SelfPlay,
     Random,
     MinMax5,
+    MinMax6,
     RandomVsRandom,
 }
 
@@ -105,6 +106,7 @@ impl App {
                 let chouse_func = match gm {
                     GameMode::Random => player_random::chouse_move,
                     GameMode::MinMax5 => player_minmax::chouse_move5,
+                    GameMode::MinMax6 => player_minmax::chouse_move6,
                     _ => unreachable!(),
                 };
 
@@ -259,6 +261,9 @@ impl eframe::App for App {
                     }
                     if ui.radio(self.game_mode == GameMode::MinMax5, "min max 5").clicked() {
                         self.change_game_mode(GameMode::MinMax5)
+                    }
+                    if ui.radio(self.game_mode == GameMode::MinMax6, "min max 6").clicked() {
+                        self.change_game_mode(GameMode::MinMax6)
                     }
                     if ui.radio(self.game_mode == GameMode::RandomVsRandom, "random vs random").clicked() {
                         self.change_game_mode(GameMode::RandomVsRandom)

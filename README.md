@@ -14,5 +14,7 @@ cargo run
 - [X] show text on win/lose/draw with restart and exit buttons
 - [X] make checkers looks like checkers (add images instead of w/b/W/B)
 - [X] highlight avalable checkers when user pres white cell or unmoveable checker
-- [ ] highlight previous moves, for multijump moves highlight all previous positions
 - [ ] optimize minmax algorth (now it plays with acceptable speed when depth <= 5)
+    - [ ] optimize board code `do_move` and `all_awailable_moves` (create `do_move` function without any checks)
+    - [ ] multithreading
+- [ ] highlight previous moves, for multijump moves highlight all previous positions

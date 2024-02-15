@@ -3,96 +3,104 @@ use crate::board::{Board, Move, Side, Cell};
 
 #[derive(Debug)]
 struct ScoredMove {
-    mv: Move,
+    mv: Option<Move>,
     score: i8,
 }
 
 /// positive numbers is good position, negative numbers is bad position
 fn count_score(board: &Board, side: Side, king_multiplier: i8) -> i8 {
-    match side {
-        Side::Black => {
-            let our_checkers_amount = board.count(Cell::Black) as i8;
-            let our_kings_amount = board.count(Cell::BlackKing) as i8;
-            let enemy_checkers_amount = board.count(Cell::White) as i8;
-            let enemy_kings_amount = board.count(Cell::WhiteKing) as i8;
-            return (our_checkers_amount + our_kings_amount * king_multiplier) - (enemy_checkers_amount + enemy_kings_amount * king_multiplier);
+    let who_turn = board.who_turn();
+
+    match board.who_win() {
+        Some(x) if x == who_turn => 127,
+        Some(x) if x != who_turn => -127,
+        None => match side {
+            Side::Black => {
+                let our_checkers_amount = board.count(Cell::Black) as i8;
+                let our_kings_amount = board.count(Cell::BlackKing) as i8;
+                let enemy_checkers_amount = board.count(Cell::White) as i8;
+                let enemy_kings_amount = board.count(Cell::WhiteKing) as i8;
+                return (our_checkers_amount + our_kings_amount * king_multiplier) - (enemy_checkers_amount + enemy_kings_amount * king_multiplier);
+            },
+            Side::White => {
+                let our_checkers_amount = board.count(Cell::White) as i8;
+                let our_kings_amount = board.count(Cell::WhiteKing) as i8;
+                let enemy_checkers_amount = board.count(Cell::Black) as i8;
+                let enemy_kings_amount = board.count(Cell::BlackKing) as i8;
+                return (our_checkers_amount + our_kings_amount * king_multiplier) - (enemy_checkers_amount + enemy_kings_amount * king_multiplier);
+            },
         },
-        Side::White => {
-            let our_checkers_amount = board.count(Cell::White) as i8;
-            let our_kings_amount = board.count(Cell::WhiteKing) as i8;
-            let enemy_checkers_amount = board.count(Cell::Black) as i8;
-            let enemy_kings_amount = board.count(Cell::BlackKing) as i8;
-            return (our_checkers_amount + our_kings_amount * king_multiplier) - (enemy_checkers_amount + enemy_kings_amount * king_multiplier);
-        },
+        Some(_) => unreachable!(),
     }
 }
 
 
-fn moves_with_scores(board: &Board, depth: usize, king_multiplier: i8) -> Vec<ScoredMove> {
-    let mut scored_moves = vec![];
-    let mvs = board.all_available_moves();
-    if mvs.len() == 0 {
-        return scored_moves;
+fn compute_best_move(board: &Board, depth: usize, king_multiplier: i8, start_score: i8, start_depth: usize) -> ScoredMove {
+    let board_score = count_score(&board, board.who_turn(), king_multiplier);
+    if board_score < -3 {
+        return ScoredMove {mv: None, score: board_score};
+    }
+    if depth == 0 {
+        return ScoredMove {mv: None, score: board_score};
     }
 
-    for i in 0..mvs.len() {
+    let mut best_mv = ScoredMove {
+        mv: None,
+        score: -127
+    };
+    let mvs = board.all_available_moves();
+    let mvs_amount = mvs.len();
+    if mvs_amount == 0 {
+        return ScoredMove {mv: None, score: board_score};
+    }
+
+    for i in 0..mvs_amount {
         let mv = mvs[i];
         let mut test_board = board.clone();
         test_board.do_move(mv).unwrap();
-        let score = match test_board.who_win() {
-            Some(x) if x == board.who_turn() => 127,
-            Some(x) if x != board.who_turn() => -128,
-            None => {
-                match depth {
-                    0 => count_score(&test_board, board.who_turn(), king_multiplier),
-                    _ => {
-                        let new_depth = match mvs.len() {
-                            1 => depth,
-                            _ => depth - 1,
-                        };
-                        let enemy_moves = moves_with_scores(&test_board, new_depth, king_multiplier);
-                        let mut best_enemy_move_score = -128;
-                        for j in 0..enemy_moves.len() {
-                            if enemy_moves[j].score > best_enemy_move_score {
-                                best_enemy_move_score = enemy_moves[j].score;
-                            }
-                        }
-                        match test_board.who_turn() == board.who_turn() {
-                            true => best_enemy_move_score,
-                            false => best_enemy_move_score * -1,
-                        }
-                    }
-                }
-            },
-            Some(_) => unreachable!(),
+
+        let new_depth;
+        let depth_substract = mvs_amount / 2;
+        if depth_substract <= depth {
+            new_depth = depth - mvs_amount / 2;
+        } else {
+            new_depth = 0;
+        }
+
+        let best_enemy_move = compute_best_move(&test_board, new_depth, king_multiplier, start_score, start_depth);
+
+        let score = match test_board.who_turn() == board.who_turn() {
+            true => best_enemy_move.score,
+            false => best_enemy_move.score * -1,
         };
-        scored_moves.push(ScoredMove {mv, score});
+
+        if score > best_mv.score {
+            best_mv.score = score;
+            best_mv.mv = Some(mv);
+        }
+
+        if score > start_score {
+            break
+        }
     }
 
-    return scored_moves;
+    return best_mv;
 }
 
 
 /// dir can be -1 or 1 it is for best or words move chousing (1 for best, -1 for worst)
 fn best_move(board: &Board, depth: usize, king_multiplier: i8) -> Option<Move> {
-    let scored_moves = moves_with_scores(&board, depth, king_multiplier);
-    if scored_moves.len() == 0 {
-        return None;
-    } else {
-        let mut best_move_index = 0;
-        let mut best_move_score = -128;
-        for i in 0..scored_moves.len() {
-            if scored_moves[i].score > best_move_score {
-                best_move_score = scored_moves[i].score;
-                best_move_index = i;
-            }
-        }
-        return Some(scored_moves[best_move_index].mv);
-    }
+    let start_score = count_score(&board, board.who_turn(), king_multiplier);
+    return compute_best_move(&board, depth, king_multiplier, start_score, depth).mv;
 }
 
 pub fn chouse_move5(board: &Board) -> Option<Move> {
     return best_move(board, 5, 3);
+}
+
+
+pub fn chouse_move6(board: &Board) -> Option<Move> {
+    return best_move(board, 30, 3);
 }
 
 
