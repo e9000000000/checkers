@@ -178,11 +178,12 @@ impl App {
 
     fn render_board(&mut self, ui: &mut egui::Ui) {
         let layout = egui::Layout::centered_and_justified(egui::Direction::TopDown);
+        let available_size = f32::min(ui.available_width(), ui.available_height());
         egui::Grid::new("checkers_grid")
         .spacing(egui::vec2(2., 2.))
-        .min_col_width(ui.available_width() / 9. -2.)
-        .max_col_width(ui.available_width() / 9. -2.)
-        .min_row_height(ui.available_height() / 9. -2.)
+        .min_col_width(available_size / 9. -2.)
+        .max_col_width(available_size / 9. -2.)
+        .min_row_height(available_size / 9. -2.)
         .show(ui, |ui| {
             self.render_coordinate(&layout, ui, format!("{}", self.bd.move_amount));
 
