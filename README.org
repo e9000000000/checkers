@@ -16,4 +16,6 @@ cargo run
 - [X] highlight avalable checkers when user pres white cell or unmoveable checker
 - [X] optimize minmax algorth (now it plays with acceptable speed when depth <= 5)
 - [ ] optimize minmax algorth (now it plays with acceptable speed when depth <= 10)
+  - [ ] alpha-beta [[https://www.youtube.com/watch?v=l-hh51ncgDI]]
+  - [ ] multithreading
 - [ ] highlight previous moves, for multijump moves highlight all previous positions
