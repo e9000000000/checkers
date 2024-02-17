@@ -7,7 +7,7 @@ enum GameMode {
     SelfPlay,
     Random,
     MinMax5,
-    MinMax6,
+    MinMax10,
     RandomVsRandom,
 }
 
@@ -95,7 +95,7 @@ impl App {
             GameMode::SelfPlay => (),
             GameMode::RandomVsRandom => {
                 while !self.bd.is_ended() {
-                    let chouse_result = player_random::chouse_move(&self.bd);
+                    let chouse_result = player_random::chouse_move(&mut self.bd);
                     match chouse_result {
                         Some(mv) => self.bd.do_move(mv).unwrap(),
                         None => (),
@@ -106,12 +106,12 @@ impl App {
                 let chouse_func = match gm {
                     GameMode::Random => player_random::chouse_move,
                     GameMode::MinMax5 => player_minmax::chouse_move5,
-                    GameMode::MinMax6 => player_minmax::chouse_move6,
+                    GameMode::MinMax10 => player_minmax::chouse_move10,
                     _ => unreachable!(),
                 };
 
                 while self.player_side != self.bd.who_turn() && !self.bd.is_ended() {
-                    let chouse_result = chouse_func(&self.bd);
+                    let chouse_result = chouse_func(&mut self.bd);
                     match chouse_result {
                         Some(mv) => self.bd.do_move(mv).unwrap(),
                         None => (),
@@ -263,8 +263,8 @@ impl eframe::App for App {
                     if ui.radio(self.game_mode == GameMode::MinMax5, "min max 5").clicked() {
                         self.change_game_mode(GameMode::MinMax5)
                     }
-                    if ui.radio(self.game_mode == GameMode::MinMax6, "min max 6").clicked() {
-                        self.change_game_mode(GameMode::MinMax6)
+                    if ui.radio(self.game_mode == GameMode::MinMax10, "min max 10").clicked() {
+                        self.change_game_mode(GameMode::MinMax10)
                     }
                     if ui.radio(self.game_mode == GameMode::RandomVsRandom, "random vs random").clicked() {
                         self.change_game_mode(GameMode::RandomVsRandom)

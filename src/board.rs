@@ -1,7 +1,8 @@
 use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Cell { White,
+pub enum Cell {
+    White,
     Black,
     WhiteKing,
     BlackKing,
@@ -70,6 +71,9 @@ pub struct Board {
     state: State,
     pub move_amount: usize,
     prev_turn_jump: Option<Point>,
+    available_moves_exists: Option<bool>,
+    white_amount: usize,
+    black_amount: usize,
 }
 
 impl Board {
@@ -78,6 +82,9 @@ impl Board {
             state: State::WhiteTurn,
             move_amount: 0,
             prev_turn_jump: None,
+            available_moves_exists: None,
+            white_amount: 12,
+            black_amount: 12,
             field: [
                 [Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black],
                 [Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty],
@@ -97,6 +104,9 @@ impl Board {
             state,
             move_amount: 0,
             prev_turn_jump: None,
+            available_moves_exists: None,
+            white_amount: 12,
+            black_amount: 12,
             field: arr.map(|row| row.map(|x| match x {
                 'b' => Cell::Black,
                 'w' => Cell::White,
@@ -388,25 +398,10 @@ impl Board {
     }
 
     fn update_after_move(&mut self) {
-        let mut is_white_on_board = false;
-        let mut is_black_on_board = false;
-
-        for y in 0..self.field.len() {
-            for x in 0..self.field[y].len() {
-                match self.field[y][x] {
-                    Cell::White => is_white_on_board = true,
-                    Cell::WhiteKing => is_white_on_board = true,
-                    Cell::Black => is_black_on_board = true,
-                    Cell::BlackKing => is_black_on_board = true,
-                    Cell::Empty => (),
-                }
-            }
-        }
-
-        if !is_white_on_board {
+        if self.white_amount == 0 {
             self.state = State::BlackWin;
         }
-        if !is_black_on_board {
+        if self.black_amount == 0 {
             self.state = State::WhiteWin;
         }
 
@@ -414,12 +409,17 @@ impl Board {
             self.state = State::Draw;
         }
 
-        if self.all_available_moves().len() == 0 {
-            match self.state {
-                State::WhiteTurn => self.state = State::BlackWin,
-                State::BlackTurn => self.state = State::WhiteWin,
-                _ => (),
-            }
+        match self.available_moves_exists {
+            Some(exists) => {
+                if !exists {
+                    match self.state {
+                        State::WhiteTurn => self.state = State::BlackWin,
+                        State::BlackTurn => self.state = State::WhiteWin,
+                        _ => (),
+                    }
+                }
+            },
+            None => unreachable!(),
         }
 
         for x in 0..self.field[0].len() {
@@ -437,8 +437,8 @@ impl Board {
     }
 
     pub fn available_moves_for_cell(&self, x: usize, y: usize) -> Moves {
-        let mut all_forced_moves = vec![];
-        let mut available_moves = vec![];
+        let mut all_forced_moves = Vec::with_capacity(10);
+        let mut available_moves = Vec::with_capacity(20);
         self.add_forced_moves_for_all_checkers_and_kings(&mut all_forced_moves);
         if all_forced_moves.len() == 0 {
             self.add_normal_moves_for_checker_or_king(&mut available_moves, x, y);
@@ -455,24 +455,25 @@ impl Board {
 
     }
 
-    pub fn all_available_moves(&self) -> Moves {
-        let mut available_moves = vec![];
+    pub fn all_available_moves(&mut self) -> Moves {
+        let mut available_moves = Vec::with_capacity(40);
         self.add_forced_moves_for_all_checkers_and_kings(&mut available_moves);
         if available_moves.len() != 0 {
             return available_moves
         }
 
-        for y in 0..self.field.len() {
-            for x in 0..self.field[y].len() {
+        for y in 0..8 {
+            for x in ((1 - y % 2)..8).step_by(2) {
                 self.add_normal_moves_for_checker_or_king(&mut available_moves, x, y);
             }
         }
 
+        self.available_moves_exists = Some(available_moves.len() > 0);
         return available_moves
     }
 
     // return if it is a jump
-    pub fn do_move_without_checks(&mut self, mv: Move) -> bool {
+    fn _do_move(&mut self, mv: Move) -> bool {
         let mut is_it_was_jump = false;
 
         self.field[mv.to.y][mv.to.x] = self.field[mv.from.y][mv.from.x];
@@ -502,7 +503,42 @@ impl Board {
             y = (y as i32 + dir_y) as usize;
         }
 
+        if is_it_was_jump {
+            match self.state {
+                State::WhiteTurn => self.black_amount -= 1,
+                State::BlackTurn => self.white_amount -= 1,
+                _ => (),
+            }
+        }
+
         return is_it_was_jump
+    }
+
+    pub fn do_move_without_checks(&mut self, mv: Move) {
+        let is_it_was_jump = self._do_move(mv);
+
+        let mut forced_to_jump_on_next_turn = false;
+        self.prev_turn_jump = None;
+        if is_it_was_jump {
+            let mut jump_moves = vec![];
+            self.add_jump_moves_for_checker_or_king(&mut jump_moves, mv.to.x, mv.to.y);
+
+            if jump_moves.len() != 0 {
+                self.prev_turn_jump = Some(mv.to);
+                forced_to_jump_on_next_turn = true;
+            }
+        }
+
+        if !forced_to_jump_on_next_turn {
+            self.state = match self.state {
+                State::WhiteTurn => State::BlackTurn,
+                State::BlackTurn => State::WhiteTurn,
+                _ => unreachable!(),
+            };
+        }
+
+        self.move_amount += 1;
+        self.update_after_move();
     }
 
     pub fn do_move(&mut self, mv: Move) -> Result<(), &'static str> {
@@ -514,7 +550,7 @@ impl Board {
 
         match available_moves.contains(&mv) {
             true => {
-                let is_it_was_jump = self.do_move_without_checks(mv);
+                let is_it_was_jump = self._do_move(mv);
 
                 let mut forced_to_jump_on_next_turn = false;
                 self.prev_turn_jump = None;
@@ -573,6 +609,12 @@ impl Board {
 
     pub fn count(&self, cell_type: Cell) -> usize {
         let mut result = 0;
+
+        if cell_type == Cell::Black {
+            return self.black_amount;
+        } else if cell_type == Cell::White {
+            return self.white_amount;
+        }
 
         for y in 0..self.field.len() {
             for x in 0..self.field[y].len() {
