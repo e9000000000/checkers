@@ -74,6 +74,8 @@ pub struct Board {
     available_moves_exists: Option<bool>,
     white_amount: usize,
     black_amount: usize,
+    white_king_amount: usize,
+    black_king_amount: usize,
 }
 
 impl Board {
@@ -85,6 +87,8 @@ impl Board {
             available_moves_exists: None,
             white_amount: 12,
             black_amount: 12,
+            white_king_amount: 0,
+            black_king_amount: 0,
             field: [
                 [Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black],
                 [Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty],
@@ -107,6 +111,8 @@ impl Board {
             available_moves_exists: None,
             white_amount: 12,
             black_amount: 12,
+            white_king_amount: 0,
+            black_king_amount: 0,
             field: arr.map(|row| row.map(|x| match x {
                 'b' => Cell::Black,
                 'w' => Cell::White,
@@ -433,13 +439,19 @@ impl Board {
 
         for x in 0..self.field[0].len() {
             match self.field[0][x] {
-                Cell::White => self.field[0][x] = Cell::WhiteKing,
+                Cell::White => {
+                    self.field[0][x] = Cell::WhiteKing;
+                    self.white_king_amount += 1;
+                },
                 _ => (),
             }
         }
         for x in 0..self.field[7].len() {
             match self.field[7][x] {
-                Cell::Black => self.field[7][x] = Cell::BlackKing,
+                Cell::Black => {
+                    self.field[7][x] = Cell::BlackKing;
+                    self.black_king_amount += 1;
+                }
                 _ => (),
             }
         }
@@ -617,23 +629,23 @@ impl Board {
     }
 
     pub fn count(&self, cell_type: Cell) -> usize {
-        let mut result = 0;
-
-        if cell_type == Cell::Black {
-            return self.black_amount;
-        } else if cell_type == Cell::White {
-            return self.white_amount;
-        }
-
-        for y in 0..self.field.len() {
-            for x in 0..self.field[y].len() {
-                if self.field[y][x] == cell_type {
-                    result += 1;
+        match cell_type {
+            Cell::Black => self.black_amount,
+            Cell::BlackKing => self.black_king_amount,
+            Cell::White => self.white_amount,
+            Cell::WhiteKing => self.white_king_amount,
+            Cell::Empty => {
+                let mut result = 0;
+                for y in 0..self.field.len() {
+                    for x in 0..self.field[y].len() {
+                        if self.field[y][x] == cell_type {
+                            result += 1;
+                        }
+                    }
                 }
-            }
+                return result;
+            },
         }
-
-        return result;
     }
 }
 

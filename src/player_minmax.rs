@@ -19,12 +19,16 @@ fn count_score(board: &Board, side: Side) -> i8 {
             Side::Black => {
                 let our_checkers_amount = board.count(Cell::Black) as i8;
                 let enemy_checkers_amount = board.count(Cell::White) as i8;
-                return our_checkers_amount - enemy_checkers_amount;
+                let our_king_amount = board.count(Cell::BlackKing) as i8;
+                let enemy_king_amount = board.count(Cell::WhiteKing) as i8;
+                return our_checkers_amount + (our_king_amount * 3) - enemy_checkers_amount - (enemy_king_amount * 3);
             },
             Side::White => {
                 let our_checkers_amount = board.count(Cell::White) as i8;
                 let enemy_checkers_amount = board.count(Cell::Black) as i8;
-                return our_checkers_amount - enemy_checkers_amount;
+                let our_king_amount = board.count(Cell::WhiteKing) as i8;
+                let enemy_king_amount = board.count(Cell::BlackKing) as i8;
+                return our_checkers_amount + (our_king_amount * 3) - enemy_checkers_amount - (enemy_king_amount * 3);
             },
         },
         Some(_) => unreachable!(),
@@ -77,7 +81,7 @@ fn compute_best_move(board: &mut Board, depth: usize, start_score: i8, incoming_
                 best_mv.mv = Some(mv);
             }
 
-            if best_enemy_move.score < beta {
+            if best_enemy_move.score > beta {
                 beta = best_enemy_move.score;
             }
         }
