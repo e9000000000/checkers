@@ -13,8 +13,8 @@ fn count_score(board: &Board, side: Side) -> i8 {
     let who_turn = board.who_turn();
 
     match board.who_win() {
-        Some(x) if x == who_turn => 127,
-        Some(x) if x != who_turn => -127,
+        Some(x) if x == who_turn => 100,
+        Some(x) if x != who_turn => -100,
         None => match side {
             Side::Black => {
                 let our_checkers_amount = board.count(Cell::Black) as i8;
@@ -32,7 +32,7 @@ fn count_score(board: &Board, side: Side) -> i8 {
 }
 
 
-fn compute_best_move(board: &mut Board, depth: usize, start_score: i8) -> ScoredMove {
+fn compute_best_move(board: &mut Board, depth: usize, start_score: i8, incoming_alpha: i8, incoming_beta: i8) -> ScoredMove {
     let board_score = count_score(&board, board.who_turn());
     if depth == 0 {
         return ScoredMove {mv: None, score: board_score};
@@ -49,21 +49,41 @@ fn compute_best_move(board: &mut Board, depth: usize, start_score: i8) -> Scored
         return ScoredMove {mv: None, score: board_score};
     }
 
+    let mut alpha = incoming_alpha;
+    let mut beta = incoming_beta;
+
     for i in 0..mvs_amount {
         let mv = mvs[i];
         let mut test_board = board.clone();
         test_board.do_move_without_checks(mv);
 
-        let best_enemy_move = compute_best_move(&mut test_board, depth - 1, start_score);
+        if test_board.who_turn() == board.who_turn() {
+            let best_our_next_move = compute_best_move(&mut test_board, depth - 1, start_score, alpha, beta);
 
-        let score = match test_board.who_turn() == board.who_turn() {
-            true => best_enemy_move.score,
-            false => best_enemy_move.score * -1,
-        };
+            if best_our_next_move.score > best_mv.score {
+                best_mv.score = best_our_next_move.score;
+                best_mv.mv = Some(mv);
+            }
 
-        if score > best_mv.score {
-            best_mv.score = score;
-            best_mv.mv = Some(mv);
+            if best_our_next_move.score > alpha {
+                alpha = best_our_next_move.score;
+            }
+        } else {
+            let best_enemy_move = compute_best_move(&mut test_board, depth - 1, start_score, beta, alpha);
+            let score = best_enemy_move.score * -1;
+
+            if score > best_mv.score {
+                best_mv.score = score;
+                best_mv.mv = Some(mv);
+            }
+
+            if best_enemy_move.score < beta {
+                beta = best_enemy_move.score;
+            }
+        }
+
+        if beta <= alpha {
+            break;
         }
     }
 
@@ -72,16 +92,19 @@ fn compute_best_move(board: &mut Board, depth: usize, start_score: i8) -> Scored
 
 
 /// dir can be -1 or 1 it is for best or words move chousing (1 for best, -1 for worst)
-fn best_move(board: &mut Board, depth: usize) -> Option<Move> {
+pub fn best_move(board: &mut Board, depth: usize) -> Option<Move> {
     let start_score = count_score(&board, board.who_turn());
-    return compute_best_move(board, depth, start_score).mv;
+    return compute_best_move(board, depth, start_score, -127, 127).mv;
 }
 
 pub fn chouse_move5(board: &mut Board) -> Option<Move> {
-    return best_move(board, 5);
+    best_move(board, 5)
 }
 
-
 pub fn chouse_move10(board: &mut Board) -> Option<Move> {
-    return best_move(board, 10);
+    best_move(board, 10)
+}
+
+pub fn chouse_move20(board: &mut Board) -> Option<Move> {
+    best_move(board, 20)
 }

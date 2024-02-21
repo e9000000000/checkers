@@ -419,7 +419,16 @@ impl Board {
                     }
                 }
             },
-            None => unreachable!(),
+            None => {
+                let all_mvs = self.all_available_moves();
+                if all_mvs.len() == 0 {
+                    match self.state {
+                        State::WhiteTurn => self.state = State::BlackWin,
+                        State::BlackTurn => self.state = State::WhiteWin,
+                        _ => (),
+                    }
+                }
+            },
         }
 
         for x in 0..self.field[0].len() {
