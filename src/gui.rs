@@ -9,7 +9,6 @@ enum GameMode {
     MinMax5,
     MinMax10,
     MinMax15,
-    MinMax20,
     RandomVsRandom,
 }
 
@@ -110,7 +109,6 @@ impl App {
                     GameMode::MinMax5 => player_minmax::chouse_move5,
                     GameMode::MinMax10 => player_minmax::chouse_move10,
                     GameMode::MinMax15 => player_minmax::chouse_move15,
-                    GameMode::MinMax20 => player_minmax::chouse_move20,
                     _ => unreachable!(),
                 };
 
@@ -272,9 +270,6 @@ impl eframe::App for App {
                     }
                     if ui.radio(self.game_mode == GameMode::MinMax15, "min max 15").clicked() {
                         self.change_game_mode(GameMode::MinMax15)
-                    }
-                    if ui.radio(self.game_mode == GameMode::MinMax20, "min max 20").clicked() {
-                        self.change_game_mode(GameMode::MinMax20)
                     }
                     if ui.radio(self.game_mode == GameMode::RandomVsRandom, "random vs random").clicked() {
                         self.change_game_mode(GameMode::RandomVsRandom)

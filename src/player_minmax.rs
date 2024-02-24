@@ -20,6 +20,15 @@ fn count_score(board: &Board) -> i8 {
     }
 }
 
+#[inline(always)]
+fn sort_boards(boards: &mut Vec<Board>, play_as_white: bool) {
+    if play_as_white {
+        boards.sort_by_key(|x| count_score(x));
+    } else {
+        boards.sort_by_key(|x| count_score(x) * -1);
+    }
+}
+
 
 fn compute_best_move(board: &mut Board, depth: usize, incoming_alpha: i8, incoming_beta: i8, play_as_white: bool) -> ScoredMove {
     let board_score = count_score(&board);
@@ -41,13 +50,19 @@ fn compute_best_move(board: &mut Board, depth: usize, incoming_alpha: i8, incomi
     if mvs_amount == 0 {
         return ScoredMove {mv: None, score: board_score};
     }
-
+    
     let mut alpha = incoming_alpha;
     let mut beta = incoming_beta;
- 
+    
+    let mut test_boards = Vec::with_capacity(mvs_amount);
+    for _ in 0..mvs_amount {
+        test_boards.push(board.clone());
+    }
+    sort_boards(&mut test_boards, play_as_white);
+    
     for i in 0..mvs_amount {
         let mv = mvs[i];
-        let mut test_board = board.clone();
+        let mut test_board = test_boards[i];
         test_board.do_move_without_checks(mv);
 
         let next_best_move;
@@ -99,8 +114,4 @@ pub fn chouse_move10(board: &mut Board) -> Option<Move> {
 
 pub fn chouse_move15(board: &mut Board) -> Option<Move> {
     best_move(board, 15)
-}
-
-pub fn chouse_move20(board: &mut Board) -> Option<Move> {
-    best_move(board, 17)
 }

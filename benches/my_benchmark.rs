@@ -15,6 +15,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut bd = board::Board::new();
         player_minmax::best_move(black_box(&mut bd), 7);
     }));
+    c.bench_function("minmax 10", |b| b.iter(|| {
+        let mut bd = board::Board::new();
+        player_minmax::best_move(black_box(&mut bd), 10);
+    }));
 }
 
 criterion_group!(benches, criterion_benchmark);
