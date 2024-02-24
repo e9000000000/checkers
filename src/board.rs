@@ -74,8 +74,6 @@ pub struct Board {
     available_moves_exists: Option<bool>,
     white_amount: usize,
     black_amount: usize,
-    white_king_amount: usize,
-    black_king_amount: usize,
 }
 
 impl Board {
@@ -87,8 +85,6 @@ impl Board {
             available_moves_exists: None,
             white_amount: 12,
             black_amount: 12,
-            white_king_amount: 0,
-            black_king_amount: 0,
             field: [
                 [Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black],
                 [Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty, Cell::Black, Cell::Empty],
@@ -111,8 +107,6 @@ impl Board {
             available_moves_exists: None,
             white_amount: 12,
             black_amount: 12,
-            white_king_amount: 0,
-            black_king_amount: 0,
             field: arr.map(|row| row.map(|x| match x {
                 'b' => Cell::Black,
                 'w' => Cell::White,
@@ -441,7 +435,6 @@ impl Board {
             match self.field[0][x] {
                 Cell::White => {
                     self.field[0][x] = Cell::WhiteKing;
-                    self.white_king_amount += 1;
                 },
                 _ => (),
             }
@@ -450,7 +443,6 @@ impl Board {
             match self.field[7][x] {
                 Cell::Black => {
                     self.field[7][x] = Cell::BlackKing;
-                    self.black_king_amount += 1;
                 }
                 _ => (),
             }
@@ -482,13 +474,13 @@ impl Board {
         if available_moves.len() != 0 {
             return available_moves
         }
-
+        
         for y in 0..8 {
             for x in ((1 - y % 2)..8).step_by(2) {
                 self.add_normal_moves_for_checker_or_king(&mut available_moves, x, y);
             }
         }
-
+        
         self.available_moves_exists = Some(available_moves.len() > 0);
         return available_moves
     }
@@ -631,10 +623,8 @@ impl Board {
     pub fn count(&self, cell_type: Cell) -> usize {
         match cell_type {
             Cell::Black => self.black_amount,
-            Cell::BlackKing => self.black_king_amount,
             Cell::White => self.white_amount,
-            Cell::WhiteKing => self.white_king_amount,
-            Cell::Empty => {
+            _ => {
                 let mut result = 0;
                 for y in 0..self.field.len() {
                     for x in 0..self.field[y].len() {

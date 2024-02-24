@@ -21,3 +21,6 @@ cargo run
 - [ ] optimize minmax algorthm (now it plays with acceptable speed when depth <= 16)
   - [ ] multithreading
 - [ ] highlight previous moves, for multijump moves highlight all previous positions
+
+# info
+- i play one game with myself and there was 4.773333333333333 avalable moves per turn in general 

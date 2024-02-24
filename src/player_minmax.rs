@@ -102,5 +102,5 @@ pub fn chouse_move15(board: &mut Board) -> Option<Move> {
 }
 
 pub fn chouse_move20(board: &mut Board) -> Option<Move> {
-    best_move(board, 16)
+    best_move(board, 17)
 }
