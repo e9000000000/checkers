@@ -15,7 +15,7 @@ fn count_score(board: &Board) -> i8 {
     match board.who_win() {
         Some(x) if x == who_turn => 100,
         Some(x) if x != who_turn => -100,
-        None => (board.count(Cell::White) + board.count(Cell::WhiteKing)*3 - board.count(Cell::Black) - board.count(Cell::BlackKing)*3) as i8,
+        None => (board.count(Cell::White) - board.count(Cell::Black)) as i8,
         Some(_) => unreachable!(),
     }
 }
@@ -95,6 +95,10 @@ pub fn chouse_move5(board: &mut Board) -> Option<Move> {
 
 pub fn chouse_move10(board: &mut Board) -> Option<Move> {
     best_move(board, 10)
+}
+
+pub fn chouse_move15(board: &mut Board) -> Option<Move> {
+    best_move(board, 15)
 }
 
 pub fn chouse_move20(board: &mut Board) -> Option<Move> {
