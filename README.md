@@ -18,9 +18,7 @@ cargo run
 - [X] optimize minmax algorth (now it plays with acceptable speed when depth <= 10)
   - [X] alpha-beta [[https://www.youtube.com/watch?v=l-hh51ncgDI]]
 - [X] fix algorighm, now it is extrimily stupid, can't win me on depth=20
-- [ ] optimize minmax algorthm (now it plays with acceptable speed when depth <= 16)
-  - [ ] multithreading
-- [ ] highlight previous moves, for multijump moves highlight all previous positions
+- [X] highlight previous moves, for multijump moves highlight all previous positions
 
 # info
-- i play one game with myself and there was 4.773333333333333 avalable moves per turn in general 
+- i play one game with myself and there was 4.773333333333333 avalable moves per turn in general

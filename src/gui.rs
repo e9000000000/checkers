@@ -20,6 +20,8 @@ pub struct App {
     bd: board::Board,
     highlighted: Vec<board::Point>,
     selected_cell: Option<board::Point>,
+    moved_from: Vec<board::Point>,
+    moved_to: Option<board::Point>,
 }
 
 
@@ -31,7 +33,9 @@ impl App {
             game_mode: GameMode::SelfPlay,
             bd: board::Board::new(),
             highlighted: vec![],
+            moved_from: vec![],
             selected_cell: None,
+            moved_to: None,
         };
         bd.highlight_available_checkers_to_move();
         return bd;
@@ -54,14 +58,21 @@ impl App {
 
     fn render_cell(&mut self, ui: &mut egui::Ui, x: usize, y: usize) {
         let color: egui::Color32;
+        let mut btn_text: Option<egui::WidgetText> = None;
         if self.highlighted.contains(&board::Point::new(x, y)) {
             color = egui::Color32::DARK_GREEN;
+        } else if self.moved_to.is_some() && self.moved_to.unwrap() == board::Point::new(x, y) {
+            color = egui::Color32::DARK_RED;
         } else {
             if self.bd.is_playable_cell(x, y) {
                 color = egui::Color32::BLACK;
             } else {
                 color = egui::Color32::DARK_GRAY;
             }
+        }
+
+        if let Some(index) = self.moved_from.iter().position(|&r| r == board::Point::new(x, y)) {
+            btn_text = Some(format!("{}", index).into());
         }
 
         ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
@@ -76,7 +87,7 @@ impl App {
                     board::Cell::WhiteKing => Some(egui::Image::from_uri("file://assets/white_king.png")),
                 };
 
-                if ui.add(egui::Button::opt_image_and_text(image, None)).clicked() {
+                if ui.add(egui::Button::opt_image_and_text(image, btn_text)).clicked() {
                     self.on_click(x, y);
                 }
             });
@@ -112,10 +123,15 @@ impl App {
                     _ => unreachable!(),
                 };
 
+                self.moved_from = vec![];
                 while self.player_side != self.bd.who_turn() && !self.bd.is_ended() {
                     let chouse_result = chouse_func(&mut self.bd);
                     match chouse_result {
-                        Some(mv) => self.bd.do_move(mv).unwrap(),
+                        Some(mv) => {
+                            self.bd.do_move(mv).unwrap();
+                            self.moved_from.push(mv.from);
+                            self.moved_to = Some(mv.to);
+                        },
                         None => (),
                     };
                 }
@@ -215,6 +231,7 @@ impl App {
                 ui.end_row();
                 y += step;
             }
+
         });
     }
 
